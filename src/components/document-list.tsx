@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DocumentUploadDialog } from "@/components/document-upload-dialog";
-import { Plus, Trash2, FileText } from "lucide-react";
+import { Plus, Trash2, FileText, Eye, Play } from "lucide-react";
 import { formatFileSize, formatDate } from "@/lib/utils";
 import type { Document } from "@/lib/db/schema";
 
@@ -111,13 +111,29 @@ export function DocumentList() {
                       {formatDate(doc.createdAt)}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={(e) => handleDelete(doc.id, e)}
-                      >
-                        <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
-                      </Button>
+                      <div className="flex items-center justify-end gap-1">
+                        {doc.status === "uploaded" && (
+                          <Link href={`/documents/${doc.id}?autoExtract=true`}>
+                            <Button variant="ghost" size="sm" title="开始提取" className="gap-1 text-primary">
+                              <Play className="h-3.5 w-3.5" />
+                              开始提取
+                            </Button>
+                          </Link>
+                        )}
+                        <Link href={`/documents/${doc.id}`}>
+                          <Button variant="ghost" size="icon" title="查看详情">
+                            <Eye className="h-4 w-4 text-muted-foreground hover:text-primary" />
+                          </Button>
+                        </Link>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={(e) => handleDelete(doc.id, e)}
+                          title="删除文档"
+                        >
+                          <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 );

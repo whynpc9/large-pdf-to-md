@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { chunks, extractionTasks } from "@/lib/db/schema";
-import { eq, and, asc } from "drizzle-orm";
+import { eq, and, asc, sql } from "drizzle-orm";
 
 export async function GET(
   req: NextRequest,
@@ -24,7 +24,7 @@ export async function GET(
       .select()
       .from(chunks)
       .where(eq(chunks.taskId, task.id))
-      .orderBy(asc(chunks.chunkIndex));
+      .orderBy(asc(chunks.startPage), asc(chunks.chunkIndex));
     return NextResponse.json({ task, chunks: chunkList });
   }
 
@@ -40,7 +40,7 @@ export async function GET(
     .select()
     .from(chunks)
     .where(eq(chunks.taskId, taskId))
-    .orderBy(asc(chunks.chunkIndex));
+    .orderBy(asc(chunks.startPage), asc(chunks.chunkIndex));
 
   return NextResponse.json({ task, chunks: chunkList });
 }

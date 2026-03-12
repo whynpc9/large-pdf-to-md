@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { extractionTasks } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { extractionTasks, chunks } from "@/lib/db/schema";
+import { eq, and, asc } from "drizzle-orm";
 import { downloadBuffer } from "@/lib/minio";
 
 export async function GET(
@@ -34,11 +34,32 @@ export async function GET(
   try {
     const buffer = await downloadBuffer(task.resultMinioPath);
     const markdown = buffer.toString("utf-8");
+
+    const allChunks = await db
+      .select({
+        startPage: chunks.startPage,
+        endPage: chunks.endPage,
+        status: chunks.status,
+      })
+      .from(chunks)
+      .where(eq(chunks.taskId, task.id))
+      .orderBy(asc(chunks.startPage));
+
+    const completedPages: string[] = [];
+    const failedPages: string[] = [];
+    for (const c of allChunks) {
+      const range = c.startPage === c.endPage ? `${c.startPage + 1}` : `${c.startPage + 1}-${c.endPage + 1}`;
+      if (c.status === "completed") completedPages.push(range);
+      else if (c.status === "failed") failedPages.push(range);
+    }
+
     return NextResponse.json({
       taskId: task.id,
       status: task.status,
       markdown,
       errorReport: task.errorReport,
+      completedPages,
+      failedPages,
     });
   } catch {
     return NextResponse.json({ error: "Result file not found" }, { status: 404 });

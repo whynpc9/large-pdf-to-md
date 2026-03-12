@@ -11,6 +11,8 @@ export async function POST(
   const { id } = await params;
   const body = await req.json().catch(() => ({}));
   const taskId = body.taskId as string | undefined;
+  const pagesPerChunk = body.pagesPerChunk as number | undefined;
+  console.log(`[retry-api] received retry request: taskId=${taskId}, pagesPerChunk=${pagesPerChunk}`);
 
   let task;
   if (taskId) {
@@ -28,7 +30,7 @@ export async function POST(
     return NextResponse.json({ error: "No extraction task found" }, { status: 404 });
   }
 
-  retryFailedChunks(task.id).catch((err) =>
+  retryFailedChunks(task.id, pagesPerChunk).catch((err) =>
     console.error("Background retry failed:", err)
   );
 
