@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 
 @theme inline {
   --color-background: var(--background);
@@ -78,4 +79,14 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* GFM task list checkboxes */
+.prose ul:has(> li > input[type="checkbox"]) {
+  list-style: none;
+  padding-left: 0;
+}
+.prose li > input[type="checkbox"] {
+  margin-right: 0.5em;
+  vertical-align: middle;
 }

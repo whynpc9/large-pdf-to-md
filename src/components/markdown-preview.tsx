@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import rehypeHighlight from "rehype-highlight";
+import "highlight.js/styles/github.css";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Copy, Check, Download } from "lucide-react";
@@ -121,7 +123,7 @@ export function MarkdownPreview({ documentId, taskId, filename, embedded }: Prop
 
   const body = viewMode === "preview" ? (
     <div className="prose prose-sm max-w-none dark:prose-invert overflow-auto">
-      <ReactMarkdown remarkPlugins={[remarkGfm]}>{markdown}</ReactMarkdown>
+      <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>{markdown}</ReactMarkdown>
     </div>
   ) : (
     <pre className="text-sm bg-muted rounded-md p-4 overflow-auto whitespace-pre-wrap">
