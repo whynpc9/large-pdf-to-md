@@ -27,16 +27,19 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { engineType, name, baseUrl, config } = body;
 
-  if (!engineType || !name || !baseUrl) {
+  const normalizedBaseUrl = typeof baseUrl === "string" ? baseUrl.trim() : "";
+  const requiresBaseUrl = engineType !== "opendataloader";
+
+  if (!engineType || !name || (requiresBaseUrl && !normalizedBaseUrl)) {
     return NextResponse.json(
-      { error: "engineType, name, and baseUrl are required" },
+      { error: "engineType and name are required; baseUrl is required for remote engines" },
       { status: 400 }
     );
   }
 
-  if (!["mineru", "vlm"].includes(engineType)) {
+  if (!["mineru", "vlm", "opendataloader"].includes(engineType)) {
     return NextResponse.json(
-      { error: "engineType must be 'mineru' or 'vlm'" },
+      { error: "engineType must be 'mineru', 'vlm', or 'opendataloader'" },
       { status: 400 }
     );
   }
@@ -46,7 +49,7 @@ export async function POST(req: NextRequest) {
     .values({
       engineType,
       name,
-      baseUrl,
+      baseUrl: normalizedBaseUrl,
       config: config ?? {},
       isActive: true,
     })

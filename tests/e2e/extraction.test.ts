@@ -212,4 +212,15 @@ test.describe("PDF Extraction E2E", () => {
     const deleteRes = await request.delete(`${BASE_URL}/api/engines/servers/${server.id}`);
     expect(deleteRes.ok()).toBeTruthy();
   });
+
+  test("OpenDataLoader server config - create", async ({ request }) => {
+    const server = await createServer(request, "opendataloader", "OpenDataLoader Test Server", "", {
+      command: "opendataloader-pdf",
+      hybrid: "off",
+      hybridMode: "auto",
+      maxRetries: 1,
+    });
+    expect(server.id).toBeTruthy();
+    expect(server.engineType).toBe("opendataloader");
+  });
 });

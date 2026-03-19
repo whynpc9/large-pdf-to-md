@@ -32,6 +32,12 @@ export async function POST(
   if (!server) {
     return NextResponse.json({ error: "Server not found" }, { status: 404 });
   }
+  if (server.engineType !== engineType) {
+    return NextResponse.json(
+      { error: "Server engineType does not match request engineType" },
+      { status: 400 }
+    );
+  }
 
   const [task] = await db
     .insert(extractionTasks)

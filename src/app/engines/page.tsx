@@ -57,7 +57,13 @@ export default function EnginesPage() {
         <div className="text-center py-8">
           <Server className="mx-auto h-10 w-10 text-muted-foreground/50 mb-2" />
           <p className="text-muted-foreground text-sm">
-            暂未配置{type === "mineru" ? "MinerU" : "VLM"}服务器
+            暂未配置
+            {type === "mineru"
+              ? "MinerU"
+              : type === "vlm"
+                ? "VLM"
+                : "OpenDataLoader"}
+            服务器
           </p>
         </div>
       );
@@ -80,7 +86,9 @@ export default function EnginesPage() {
                         <Badge variant="secondary" className="text-xs">停用</Badge>
                       )}
                     </div>
-                    <p className="text-sm text-muted-foreground">{server.baseUrl}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {server.baseUrl || "本地执行（未配置 Hybrid URL）"}
+                    </p>
                     <div className="flex flex-wrap gap-2 mt-2">
                       {type === "mineru" && (
                         <>
@@ -105,6 +113,19 @@ export default function EnginesPage() {
                           </Badge>
                           <Badge variant="outline" className="text-xs">
                             每批: {(config.pagesPerBatch as number) ?? 1}页
+                          </Badge>
+                        </>
+                      )}
+                      {type === "opendataloader" && (
+                        <>
+                          <Badge variant="outline" className="text-xs">
+                            命令: {(config.command as string) ?? "opendataloader-pdf"}
+                          </Badge>
+                          <Badge variant="outline" className="text-xs">
+                            Hybrid: {(config.hybrid as string) ?? "off"}
+                          </Badge>
+                          <Badge variant="outline" className="text-xs">
+                            StructTree: {(config.useStructTree as boolean) ? "on" : "off"}
                           </Badge>
                         </>
                       )}
@@ -146,9 +167,11 @@ export default function EnginesPage() {
         <TabsList>
           <TabsTrigger value="mineru">MinerU (传统OCR)</TabsTrigger>
           <TabsTrigger value="vlm">视觉大模型 (VLM)</TabsTrigger>
+          <TabsTrigger value="opendataloader">OpenDataLoader PDF</TabsTrigger>
         </TabsList>
         <TabsContent value="mineru">{renderServerList("mineru")}</TabsContent>
         <TabsContent value="vlm">{renderServerList("vlm")}</TabsContent>
+        <TabsContent value="opendataloader">{renderServerList("opendataloader")}</TabsContent>
       </Tabs>
 
       <EngineServerForm

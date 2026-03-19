@@ -13,8 +13,13 @@ import {
 } from "@/lib/minio";
 import { splitPdf, getPageCount, pdfPagesToImages } from "@/lib/pdf-utils";
 import { extractWithMinerU } from "@/lib/engines/mineru";
+import { extractWithOpenDataLoader } from "@/lib/engines/opendataloader";
 import { extractWithVLM } from "@/lib/engines/vlm";
-import { getMinerUConfig, getVLMConfig } from "@/lib/engines/types";
+import {
+  getMinerUConfig,
+  getOpenDataLoaderConfig,
+  getVLMConfig,
+} from "@/lib/engines/types";
 
 export async function runExtraction(taskId: string) {
   try {
@@ -53,6 +58,8 @@ export async function runExtraction(taskId: string) {
 
     if (task.engineType === "mineru") {
       await runMinerUPipeline(task, doc.id, pdfBuffer, pageCount, server);
+    } else if (task.engineType === "opendataloader") {
+      await runOpenDataLoaderPipeline(task, doc.id, pdfBuffer, pageCount, server);
     } else {
       await runVLMPipeline(task, doc.id, pdfBuffer, pageCount, server);
     }
@@ -182,6 +189,46 @@ async function runVLMPipeline(
       }
     );
   }
+}
+
+async function runOpenDataLoaderPipeline(
+  task: ExtractionTask,
+  documentId: string,
+  pdfBuffer: Buffer,
+  pageCount: number,
+  server: EngineServer
+) {
+  const config = getOpenDataLoaderConfig({
+    ...((server.config ?? {}) as Record<string, unknown>),
+    ...((task.config ?? {}) as Record<string, unknown>),
+  });
+
+  await db
+    .update(extractionTasks)
+    .set({ totalChunks: 1, updatedAt: new Date() })
+    .where(eq(extractionTasks.id, task.id));
+
+  const inputPath = chunkPdfPath(documentId, 0);
+  await uploadBuffer(inputPath, pdfBuffer, "application/pdf");
+
+  const [chunkRecord] = await db
+    .insert(chunks)
+    .values({
+      taskId: task.id,
+      documentId,
+      chunkIndex: 0,
+      startPage: 0,
+      endPage: Math.max(0, pageCount - 1),
+      minioInputPath: inputPath,
+      status: "pending",
+    })
+    .returning();
+
+  await processChunkWithRetry(chunkRecord, config.maxRetries, async (c: Chunk) => {
+    const chunkBuffer = await downloadBuffer(c.minioInputPath!);
+    const filename = `document_${documentId}.pdf`;
+    return extractWithOpenDataLoader(server.baseUrl, chunkBuffer, filename, config);
+  });
 }
 
 async function processChunkWithRetry(
@@ -481,6 +528,16 @@ export async function retryFailedChunks(taskId: string, newPagesPerChunk?: numbe
           const chunkBuffer = await downloadBuffer(c.minioInputPath!);
           const filename = `chunk_${String(c.chunkIndex).padStart(3, "0")}.pdf`;
           return extractWithMinerU(server.baseUrl, chunkBuffer, filename, config);
+        });
+      } else if (task.engineType === "opendataloader") {
+        const config = getOpenDataLoaderConfig({
+          ...((server.config ?? {}) as Record<string, unknown>),
+          ...((task.config ?? {}) as Record<string, unknown>),
+        });
+        await processChunkWithRetry(chunkRecord, config.maxRetries, async (c) => {
+          const chunkBuffer = await downloadBuffer(c.minioInputPath!);
+          const filename = `document_${doc.id}.pdf`;
+          return extractWithOpenDataLoader(server.baseUrl, chunkBuffer, filename, config);
         });
       } else {
         const config = getVLMConfig({

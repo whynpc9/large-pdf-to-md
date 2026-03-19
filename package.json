@@ -10,7 +10,10 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "docker:opendataloader:up": "docker compose -f docker-compose.opendataloader.yml up --build -d",
+    "docker:opendataloader:down": "docker compose -f docker-compose.opendataloader.yml down -v",
+    "test:e2e:opendataloader:local": "node scripts/e2e-opendataloader-local.mjs"
   },
   "keywords": [],
   "author": "",

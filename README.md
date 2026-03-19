@@ -1,6 +1,6 @@
 # PDF to Markdown
 
-将大型 PDF 文档转换为 Markdown 文本的 Web 应用。支持两种提取引擎：MinerU（传统 OCR）和兼容 OpenAI API 的视觉大模型（如 Qwen-VL）。
+将大型 PDF 文档转换为 Markdown 文本的 Web 应用。支持三种提取引擎：MinerU（传统 OCR）、OpenDataLoader PDF（本地/Hybrid OCR）和兼容 OpenAI API 的视觉大模型（如 Qwen-VL）。
 
 核心能力：对大型 PDF 自动分块处理，逐块提取后合并结果，支持断点恢复和失败重试。
 
@@ -11,7 +11,7 @@
 | 框架 | Next.js 16 (App Router, Turbopack) |
 | 数据库 | PostgreSQL 16 + Drizzle ORM |
 | 对象存储 | MinIO (S3 兼容) |
-| OCR 引擎 | MinerU (FastAPI `/file_parse`) |
+| OCR 引擎 | MinerU (FastAPI `/file_parse`)、OpenDataLoader PDF (CLI / Hybrid) |
 | 视觉大模型 | Qwen-VL 等 (vLLM, OpenAI API 兼容) |
 | UI | Tailwind CSS 4 + shadcn/ui 风格组件 |
 
@@ -28,7 +28,7 @@ src/
 │       └── engines/        # 引擎服务器 CRUD
 ├── lib/
 │   ├── db/                 # Drizzle schema + 连接
-│   ├── engines/            # MinerU / VLM 引擎客户端
+│   ├── engines/            # MinerU / OpenDataLoader / VLM 引擎客户端
 │   ├── extraction/         # 分块提取流水线
 │   ├── minio.ts            # MinIO 客户端封装
 │   └── pdf-utils.ts        # PDF 拆分、页数统计、转 PNG
@@ -42,6 +42,8 @@ src/
 - Node.js >= 20
 - Docker (用于 PostgreSQL)
 - poppler-utils（VLM 引擎需要 `pdftoppm` 将 PDF 转为 PNG）
+- Java 11+（OpenDataLoader PDF 需要）
+- `opendataloader-pdf` CLI（OpenDataLoader 引擎需要，Hybrid 模式可选配 `opendataloader-pdf-hybrid`）
 
 ```bash
 # macOS
@@ -112,6 +114,14 @@ npm run dev
 - DPI: PDF 转 PNG 的分辨率（最大 200）
 - 每批页数: 每次 API 调用处理的页数
 
+**OpenDataLoader 配置：**
+- Hybrid 服务地址: 可选；启用 Hybrid 时可填写（如 `http://localhost:5002`）
+- CLI 命令: 默认 `opendataloader-pdf`
+- Hybrid: `off` / `docling-fast`
+- Hybrid 模式: `auto` / `full`
+- 使用结构树: 优先读取 Tagged PDF 结构
+- 保留换行: 保留原始行分隔
+
 ### 上传并提取文档
 
 1. 在 **文档管理** 页面上传 PDF
@@ -142,6 +152,14 @@ npm run dev
 ```
 
 每页图片通过 MinIO presigned URL 提供给 vLLM 服务访问。系统 Prompt 引导模型保留文档结构、表格、公式等格式。
+
+### OpenDataLoader PDF
+
+```
+原始 PDF → 本地调用 opendataloader-pdf CLI → 读取生成的 Markdown → 写回任务结果
+```
+
+扫描件 OCR 需要启用 Hybrid，并单独启动 `opendataloader-pdf-hybrid` 服务；客户端通过 Hybrid URL 和模式参数接入。
 
 ## MinIO 存储结构
 
@@ -198,6 +216,60 @@ npx playwright install
 # 运行测试（需要先启动 dev server 和外部服务）
 npm run test:e2e
 ```
+
+### OpenDataLoader 本地 Docker 联调
+
+仓库提供了一套独立的本地测试栈，包含：
+
+- 应用服务
+- PostgreSQL
+- MinIO
+- Java 17
+- Python 3 + `opendataloader-pdf`
+
+启动：
+
+```bash
+npm run docker:opendataloader:up
+```
+
+运行 OpenDataLoader 端到端验证：
+
+```bash
+npm run test:e2e:opendataloader:local
+```
+
+清理：
+
+```bash
+npm run docker:opendataloader:down
+```
+
+默认对外暴露：
+
+- App: `http://localhost:3300`
+- MinIO API: `http://localhost:9002`
+- MinIO Console: `http://localhost:9003`
+
+### 生产 Docker 部署
+
+生产镜像现在已内置 OpenDataLoader 运行时，包括：
+
+- Java 17
+- Python 3 venv
+- `opendataloader-pdf`
+- `pdftoppm` / poppler
+
+直接使用：
+
+```bash
+docker compose -f docker-compose.prod.yml --env-file .env.production.example up --build -d
+```
+
+启动后：
+
+- OpenDataLoader 本地模式可直接在 UI 中配置并使用
+- 如果要使用 OpenDataLoader Hybrid OCR，仍需额外准备 `opendataloader-pdf-hybrid` 服务，并把其地址填到引擎配置里的 Hybrid URL
 
 ## 常用命令
 

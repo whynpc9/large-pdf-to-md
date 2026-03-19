@@ -9,7 +9,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Play } from "lucide-react";
 import type { EngineServer } from "@/lib/db/schema";
 import type { EngineType } from "@/lib/engines/types";
-import { DEFAULT_MINERU_CONFIG, DEFAULT_VLM_CONFIG } from "@/lib/engines/types";
+import {
+  DEFAULT_MINERU_CONFIG,
+  DEFAULT_OPENDATALOADER_CONFIG,
+  DEFAULT_VLM_CONFIG,
+} from "@/lib/engines/types";
 
 interface Props {
   documentId: string;
@@ -38,6 +42,17 @@ export function ExtractionPanel({ documentId, autoStart, onExtractionStarted, em
     maxRetries: DEFAULT_VLM_CONFIG.maxRetries,
   });
 
+  const [openDataLoaderConfig, setOpenDataLoaderConfig] = useState({
+    command: DEFAULT_OPENDATALOADER_CONFIG.command,
+    hybrid: DEFAULT_OPENDATALOADER_CONFIG.hybrid,
+    hybridMode: DEFAULT_OPENDATALOADER_CONFIG.hybridMode,
+    useStructTree: DEFAULT_OPENDATALOADER_CONFIG.useStructTree,
+    keepLineBreaks: DEFAULT_OPENDATALOADER_CONFIG.keepLineBreaks,
+    hybridTimeoutMs: DEFAULT_OPENDATALOADER_CONFIG.hybridTimeoutMs,
+    hybridFallback: DEFAULT_OPENDATALOADER_CONFIG.hybridFallback,
+    maxRetries: DEFAULT_OPENDATALOADER_CONFIG.maxRetries,
+  });
+
   useEffect(() => {
     fetch(`/api/engines/servers?engineType=${engineType}`)
       .then((r) => r.json())
@@ -52,7 +67,12 @@ export function ExtractionPanel({ documentId, autoStart, onExtractionStarted, em
     if (!serverId) return;
     setStarting(true);
     try {
-      const config = engineType === "mineru" ? mineruConfig : vlmConfig;
+      const config =
+        engineType === "mineru"
+          ? mineruConfig
+          : engineType === "vlm"
+            ? vlmConfig
+            : openDataLoaderConfig;
       const res = await fetch(`/api/documents/${documentId}/extract`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -68,7 +88,15 @@ export function ExtractionPanel({ documentId, autoStart, onExtractionStarted, em
     } finally {
       setStarting(false);
     }
-  }, [serverId, engineType, mineruConfig, vlmConfig, documentId, onExtractionStarted]);
+  }, [
+    serverId,
+    engineType,
+    mineruConfig,
+    vlmConfig,
+    openDataLoaderConfig,
+    documentId,
+    onExtractionStarted,
+  ]);
 
   useEffect(() => {
     if (autoStart && serverId && !autoStartTriggered.current) {
@@ -88,6 +116,7 @@ export function ExtractionPanel({ documentId, autoStart, onExtractionStarted, em
             options={[
               { value: "mineru", label: "MinerU (传统OCR)" },
               { value: "vlm", label: "视觉大模型 (VLM)" },
+              { value: "opendataloader", label: "OpenDataLoader PDF" },
             ]}
           />
         </div>
@@ -204,6 +233,134 @@ export function ExtractionPanel({ documentId, autoStart, onExtractionStarted, em
               value={vlmConfig.maxRetries}
               onChange={(e) =>
                 setVlmConfig((c) => ({ ...c, maxRetries: Number(e.target.value) }))
+              }
+              min={0}
+              max={10}
+            />
+          </div>
+        </div>
+      )}
+
+      {engineType === "opendataloader" && (
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1 col-span-2">
+            <Label className="text-xs">CLI 命令</Label>
+            <Input
+              value={openDataLoaderConfig.command}
+              onChange={(e) =>
+                setOpenDataLoaderConfig((c) => ({ ...c, command: e.target.value }))
+              }
+              placeholder="opendataloader-pdf"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Hybrid</Label>
+            <Select
+              value={openDataLoaderConfig.hybrid}
+              onChange={(e) =>
+                setOpenDataLoaderConfig((c) => ({
+                  ...c,
+                  hybrid: e.target.value as "off" | "docling-fast",
+                }))
+              }
+              options={[
+                { value: "off", label: "关闭（本地模式）" },
+                { value: "docling-fast", label: "docling-fast" },
+              ]}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Hybrid 模式</Label>
+            <Select
+              value={openDataLoaderConfig.hybridMode}
+              onChange={(e) =>
+                setOpenDataLoaderConfig((c) => ({
+                  ...c,
+                  hybridMode: e.target.value as "auto" | "full",
+                }))
+              }
+              options={[
+                { value: "auto", label: "Auto" },
+                { value: "full", label: "Full" },
+              ]}
+              disabled={openDataLoaderConfig.hybrid === "off"}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">使用结构树</Label>
+            <Select
+              value={String(openDataLoaderConfig.useStructTree)}
+              onChange={(e) =>
+                setOpenDataLoaderConfig((c) => ({
+                  ...c,
+                  useStructTree: e.target.value === "true",
+                }))
+              }
+              options={[
+                { value: "false", label: "否" },
+                { value: "true", label: "是" },
+              ]}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">保留换行</Label>
+            <Select
+              value={String(openDataLoaderConfig.keepLineBreaks)}
+              onChange={(e) =>
+                setOpenDataLoaderConfig((c) => ({
+                  ...c,
+                  keepLineBreaks: e.target.value === "true",
+                }))
+              }
+              options={[
+                { value: "false", label: "否" },
+                { value: "true", label: "是" },
+              ]}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Hybrid 超时 (ms)</Label>
+            <Input
+              type="number"
+              value={openDataLoaderConfig.hybridTimeoutMs}
+              onChange={(e) =>
+                setOpenDataLoaderConfig((c) => ({
+                  ...c,
+                  hybridTimeoutMs: Number(e.target.value),
+                }))
+              }
+              min={1000}
+              step={1000}
+              disabled={openDataLoaderConfig.hybrid === "off"}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">失败时回退本地</Label>
+            <Select
+              value={String(openDataLoaderConfig.hybridFallback)}
+              onChange={(e) =>
+                setOpenDataLoaderConfig((c) => ({
+                  ...c,
+                  hybridFallback: e.target.value === "true",
+                }))
+              }
+              options={[
+                { value: "false", label: "否" },
+                { value: "true", label: "是" },
+              ]}
+              disabled={openDataLoaderConfig.hybrid === "off"}
+            />
+          </div>
+          <div className="space-y-1 col-span-2">
+            <Label className="text-xs">最大重试</Label>
+            <Input
+              type="number"
+              value={openDataLoaderConfig.maxRetries}
+              onChange={(e) =>
+                setOpenDataLoaderConfig((c) => ({
+                  ...c,
+                  maxRetries: Number(e.target.value),
+                }))
               }
               min={0}
               max={10}

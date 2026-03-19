@@ -1,4 +1,4 @@
-export type EngineType = "mineru" | "vlm";
+export type EngineType = "mineru" | "vlm" | "opendataloader";
 
 export interface MinerUConfig {
   backend: string;
@@ -13,6 +13,17 @@ export interface VLMConfig {
   pagesPerBatch: number;
   maxRetries: number;
   systemPrompt: string;
+}
+
+export interface OpenDataLoaderConfig {
+  command: string;
+  hybrid: "off" | "docling-fast";
+  hybridMode: "auto" | "full";
+  useStructTree: boolean;
+  keepLineBreaks: boolean;
+  hybridTimeoutMs: number;
+  hybridFallback: boolean;
+  maxRetries: number;
 }
 
 export const DEFAULT_MINERU_CONFIG: MinerUConfig = {
@@ -38,21 +49,77 @@ export const DEFAULT_VLM_CONFIG: VLMConfig = {
 6. 仅输出提取的Markdown文本，不要附加任何额外的解释说明`,
 };
 
+export const DEFAULT_OPENDATALOADER_CONFIG: OpenDataLoaderConfig = {
+  command: "opendataloader-pdf",
+  hybrid: "off",
+  hybridMode: "auto",
+  useStructTree: false,
+  keepLineBreaks: false,
+  hybridTimeoutMs: 30_000,
+  hybridFallback: false,
+  maxRetries: 2,
+};
+
+function getString(value: unknown, fallback: string): string {
+  return typeof value === "string" && value.length > 0 ? value : fallback;
+}
+
+function getNumber(value: unknown, fallback: number): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function getBoolean(value: unknown, fallback: boolean): boolean {
+  return typeof value === "boolean" ? value : fallback;
+}
+
 export function getMinerUConfig(config: Record<string, unknown>): MinerUConfig {
   return {
-    backend: (config.backend as string) ?? DEFAULT_MINERU_CONFIG.backend,
-    pagesPerChunk: (config.pagesPerChunk as number) ?? DEFAULT_MINERU_CONFIG.pagesPerChunk,
-    maxRetries: (config.maxRetries as number) ?? DEFAULT_MINERU_CONFIG.maxRetries,
-    lang: (config.lang as string) ?? DEFAULT_MINERU_CONFIG.lang,
+    backend: getString(config.backend, DEFAULT_MINERU_CONFIG.backend),
+    pagesPerChunk: getNumber(config.pagesPerChunk, DEFAULT_MINERU_CONFIG.pagesPerChunk),
+    maxRetries: getNumber(config.maxRetries, DEFAULT_MINERU_CONFIG.maxRetries),
+    lang: getString(config.lang, DEFAULT_MINERU_CONFIG.lang),
   };
 }
 
 export function getVLMConfig(config: Record<string, unknown>): VLMConfig {
   return {
-    modelId: (config.modelId as string) ?? DEFAULT_VLM_CONFIG.modelId,
-    dpi: (config.dpi as number) ?? DEFAULT_VLM_CONFIG.dpi,
-    pagesPerBatch: (config.pagesPerBatch as number) ?? DEFAULT_VLM_CONFIG.pagesPerBatch,
-    maxRetries: (config.maxRetries as number) ?? DEFAULT_VLM_CONFIG.maxRetries,
-    systemPrompt: (config.systemPrompt as string) ?? DEFAULT_VLM_CONFIG.systemPrompt,
+    modelId: getString(config.modelId, DEFAULT_VLM_CONFIG.modelId),
+    dpi: getNumber(config.dpi, DEFAULT_VLM_CONFIG.dpi),
+    pagesPerBatch: getNumber(config.pagesPerBatch, DEFAULT_VLM_CONFIG.pagesPerBatch),
+    maxRetries: getNumber(config.maxRetries, DEFAULT_VLM_CONFIG.maxRetries),
+    systemPrompt: getString(config.systemPrompt, DEFAULT_VLM_CONFIG.systemPrompt),
+  };
+}
+
+export function getOpenDataLoaderConfig(
+  config: Record<string, unknown>
+): OpenDataLoaderConfig {
+  return {
+    command: getString(config.command, DEFAULT_OPENDATALOADER_CONFIG.command),
+    hybrid:
+      config.hybrid === "docling-fast"
+        ? "docling-fast"
+        : DEFAULT_OPENDATALOADER_CONFIG.hybrid,
+    hybridMode:
+      config.hybridMode === "full"
+        ? "full"
+        : DEFAULT_OPENDATALOADER_CONFIG.hybridMode,
+    useStructTree: getBoolean(
+      config.useStructTree,
+      DEFAULT_OPENDATALOADER_CONFIG.useStructTree
+    ),
+    keepLineBreaks: getBoolean(
+      config.keepLineBreaks,
+      DEFAULT_OPENDATALOADER_CONFIG.keepLineBreaks
+    ),
+    hybridTimeoutMs: getNumber(
+      config.hybridTimeoutMs,
+      DEFAULT_OPENDATALOADER_CONFIG.hybridTimeoutMs
+    ),
+    hybridFallback: getBoolean(
+      config.hybridFallback,
+      DEFAULT_OPENDATALOADER_CONFIG.hybridFallback
+    ),
+    maxRetries: getNumber(config.maxRetries, DEFAULT_OPENDATALOADER_CONFIG.maxRetries),
   };
 }

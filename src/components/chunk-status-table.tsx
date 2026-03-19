@@ -34,6 +34,7 @@ export function ChunkStatusTable({ task, chunks, onRetry, retrying, embedded }: 
 
   const taskConfig = (task.config ?? {}) as Record<string, unknown>;
   const originalPagesPerChunk = (taskConfig.pagesPerChunk as number) ?? 20;
+  const canResplitChunks = task.engineType === "mineru" || task.engineType === "vlm";
 
   const status = statusMap[task.status] ?? statusMap.pending;
   const total = task.totalChunks ?? 0;
@@ -65,7 +66,7 @@ export function ChunkStatusTable({ task, chunks, onRetry, retrying, embedded }: 
           <Button
             variant="outline"
             size="sm"
-            onClick={() => onRetry(retryPagesPerChunk)}
+            onClick={() => onRetry(canResplitChunks ? retryPagesPerChunk : undefined)}
             disabled={retrying}
             className="h-7 text-xs"
           >
@@ -77,7 +78,7 @@ export function ChunkStatusTable({ task, chunks, onRetry, retrying, embedded }: 
       <Progress value={progress} className="h-2" />
 
       {/* retry config */}
-      {hasFailed && (
+      {hasFailed && canResplitChunks && (
         <div className="rounded-md bg-muted/50 p-2.5 space-y-1.5">
           <p className="text-xs text-muted-foreground">
             {failed} 个块失败（最大 {maxFailedPages} 页/块），可减小页数后重试
@@ -96,6 +97,14 @@ export function ChunkStatusTable({ task, chunks, onRetry, retrying, embedded }: 
             />
             <span className="text-xs text-muted-foreground">(原: {originalPagesPerChunk})</span>
           </div>
+        </div>
+      )}
+
+      {hasFailed && !canResplitChunks && (
+        <div className="rounded-md bg-muted/50 p-2.5">
+          <p className="text-xs text-muted-foreground">
+            此引擎不支持按更小页块重拆，重试会直接重新执行失败任务。
+          </p>
         </div>
       )}
 
